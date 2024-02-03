@@ -282,7 +282,7 @@ class MainActivity : BaseActivity() {
     private fun sharePDFFile() {
         val contentUri: Uri = FileProvider.getUriForFile(
             applicationContext,
-            "com.example.pdftoimage.provider",
+            "com.example.imagetopdf.provider",
             mDocumentPath
         )
 
@@ -299,7 +299,7 @@ class MainActivity : BaseActivity() {
     private fun openPDFFile() {
         val contentUri: Uri = FileProvider.getUriForFile(
             applicationContext,
-            "com.example.pdftoimage.provider",
+            "com.example.imagetopdf.provider",
             mDocumentPath
         )
 

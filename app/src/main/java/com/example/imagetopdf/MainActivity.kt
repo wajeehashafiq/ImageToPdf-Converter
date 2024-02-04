@@ -15,7 +15,6 @@ import android.util.Log
 import android.view.Window
 import android.widget.Button
 import android.widget.ImageView
-import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import com.example.imagetopdf.BaseObject.PICK_IMAGE_MULTIPLE
@@ -328,7 +327,7 @@ class MainActivity : BaseActivity() {
             mDocumentPath
         } else {
             Log.i("information", "error: $root")
-          Toast.makeText(this, "Folder is not created", Toast.LENGTH_SHORT).show()
+//            Toast.makeText(this, "Folder is not created", Toast.LENGTH_SHORT).show()
             null
         }
     }

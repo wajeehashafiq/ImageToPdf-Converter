@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
-import android.database.Cursor
 import android.graphics.*
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
@@ -15,6 +14,7 @@ import android.util.Log
 import android.view.Window
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
 import com.example.imagetopdf.BaseObject.PICK_IMAGE_MULTIPLE
@@ -30,11 +30,13 @@ import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.graphics.image.JPEGFactory
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 
 class MainActivity : BaseActivity() {
 
     private var isSuccess: Boolean = false
+    private lateinit var mDocumentUri: Uri
 
     private lateinit var imageView: ImageView
     private var myImagePath: String = ""
@@ -59,11 +61,14 @@ class MainActivity : BaseActivity() {
 
         val imagesSelectButton = findViewById<Button>(R.id.btn_selectImages)
         imagesSelectButton.setOnClickListener {
-            if (checkRequestStorage()) {
-                photoIntentMethod()
-            } else {
-                requestStoragePermission()
-            }
+
+            photoIntentMethod()
+
+//            if (checkRequestStorage()) {
+//                photoIntentMethod()
+//            } else {
+//                requestStoragePermission()
+//            }
 
         }
 
@@ -89,13 +94,13 @@ class MainActivity : BaseActivity() {
                         imageView.setImageURI(imageUri)
                         myImagePath = imageUri.toString()
                         Log.i("information", imageUri.toString())
-                        pathList.add(getImagePath(imageUri))
+                        pathList.add(getImagePath(imageUri).toString())
                     }
                 } else if (intentData.data != null) {
                     val imageUri = intentData.data
                     imageView.setImageURI(imageUri)
                     myImagePath = imageUri.toString()
-                    pathList.add(getImagePath(imageUri!!))
+                    pathList.add(getImagePath(imageUri!!).toString())
                     Log.i("information", imageUri.toString())
                 }
             }
@@ -106,19 +111,33 @@ class MainActivity : BaseActivity() {
 
     @SuppressLint("Range")
     private fun getImagePath(uri: Uri): String {
-        var cursor: Cursor? = contentResolver.query(uri, null, null, null, null)
-        cursor?.moveToFirst()
-        var documentId: String = cursor!!.getString(0)
-        documentId = documentId.substring(documentId.lastIndexOf(":") + 1)
-        cursor.close()
-        cursor = contentResolver.query(
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            null, MediaStore.Images.Media._ID + " = ? ", arrayOf(documentId), null
-        )
-        cursor?.moveToFirst()
-        val path: String = cursor!!.getString(cursor.getColumnIndex(MediaStore.Images.Media.DATA))
-        cursor.close()
-        return path
+        val result: String
+        val cursor = contentResolver.query(uri, null, null, null, null)
+        if (cursor == null) {
+            result = uri.getPath().toString()
+        } else {
+            cursor.moveToFirst()
+            val idx = cursor.getColumnIndex(MediaStore.Images.ImageColumns.DATA)
+            result = cursor.getString(idx)
+            cursor.close()
+        }
+        return result
+    }
+
+    private fun getDataColumn(
+        context: Context, uri: Uri, selection: String?,
+        selectionArgs: Array<String>?
+    ): String? {
+        val column = MediaStore.Images.Media.DATA
+        val projection = arrayOf(column)
+
+        context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use {
+            if (it.moveToFirst()) {
+                val columnIndex: Int = it.getColumnIndexOrThrow(column)
+                return it.getString(columnIndex)
+            }
+        }
+        return null
     }
 
     private fun photoIntentMethod() {
@@ -141,61 +160,124 @@ class MainActivity : BaseActivity() {
     }
 
 
-    fun createPdfBox() {
-        val document = PDDocument()
-        var contentStream: PDPageContentStream
+//    private fun createPdfBox() {
+//        val document = PDDocument()
+//
+//        try {
+//            for (i in 0 until pathList.size) {
+//                val page = PDPage(getPageSizeList(getPageSizePosition(this)))
+//                document.addPage(page)
+//
+//                val contentStream = PDPageContentStream(document, page, true, true)
+//
+//                // Load the bitmap using the correct orientation
+//                val bitmap = loadBitmapWithOrientation(pathList[i])
+//
+//                val scaledBitmap = Bitmap.createScaledBitmap(
+//                    bitmap,
+//                    getImageWidth(bitmap),
+//                    getImageHeight(bitmap),
+//                    true
+//                )
+//
+//                val resizedBitmap = bitmapMargin(scaledBitmap)
+//
+//                val xImage = JPEGFactory.createFromImage(document, resizedBitmap, 0.75F, 72)
+//
+//                contentStream.drawImage(
+//                    xImage,
+//                    (getPageSizeList(getPageSizePosition(this)).width / 2 - resizedBitmap.width / 2).toFloat(),
+//                    (getPageSizeList(getPageSizePosition(this)).height / 2 - resizedBitmap.height / 2).toFloat()
+//                )
+//
+//                contentStream.close()
+//            }
+//
+//            document.save(getOutputFile()?.absolutePath)
+//            document.close()
+//            isSuccess = true
+//
+//            mDocumentUri = FileProvider.getUriForFile(
+//                applicationContext,
+//                "com.example.imagetopdf.provider",
+//                mDocumentPath
+//            )
+//        } catch (e: IOException) {
+//            println("-- pdf IOException ${e.message}")
+//            isSuccess = false
+//        }
+//    }
+
+
+    private fun createPdfBox() {
         try {
-            for (i in 0 until pathList.size) {
-                // Define a content stream for adding to the PDF
-                val page = PDPage(getPageSizeList(getPageSizePosition(this)))
-                document.addPage(page)
-                contentStream = PDPageContentStream(document, page, true, true)
-
-                val exifInterface = ExifInterface(pathList[i])
-                val orientation = exifInterface.getAttributeInt(
-                    ExifInterface.TAG_ORIENTATION,
-                    ExifInterface.ORIENTATION_NORMAL
+            val file = getOutputFile()
+            file?.let {
+                val uri = FileProvider.getUriForFile(
+                    applicationContext,
+                    "com.example.imagetopdf.provider",
+                    file
                 )
 
-                val bitmap: Bitmap = BitmapFactory.decodeFile(
-                    pathList.get(i)
-                )
+                contentResolver.openFileDescriptor(uri, "w")?.use { parcelFileDescriptor ->
+                    val fileOutputStream = FileOutputStream(parcelFileDescriptor.fileDescriptor)
+                    val document = PDDocument()
 
-                val rBitmap = when (orientation) {
-                    ExifInterface.ORIENTATION_ROTATE_90 -> bitmapRotation(bitmap, 90F)
-                    ExifInterface.ORIENTATION_ROTATE_180 -> bitmapRotation(bitmap, 180F)
-                    ExifInterface.ORIENTATION_ROTATE_270 -> bitmapRotation(bitmap, 270F)
-                    else -> bitmapRotation(bitmap, 0F)
+                    for (i in 0 until pathList.size) {
+                        val page = PDPage(getPageSizeList(getPageSizePosition(this)))
+                        document.addPage(page)
+
+                        val contentStream = PDPageContentStream(document, page, true, true)
+
+                        val bitmap = loadBitmapWithOrientation(pathList[i])
+
+                        val scaledBitmap = Bitmap.createScaledBitmap(
+                            bitmap,
+                            getImageWidth(bitmap),
+                            getImageHeight(bitmap),
+                            true
+                        )
+
+                        val resizedBitmap = bitmapMargin(scaledBitmap)
+
+                        val xImage = JPEGFactory.createFromImage(document, resizedBitmap, 0.75F, 72)
+
+                        contentStream.drawImage(
+                            xImage,
+                            (getPageSizeList(getPageSizePosition(this)).width / 2 - resizedBitmap.width / 2).toFloat(),
+                            (getPageSizeList(getPageSizePosition(this)).height / 2 - resizedBitmap.height / 2).toFloat()
+                        )
+
+                        contentStream.close()
+                    }
+
+                    document.save(fileOutputStream)
+                    document.close()
+                    isSuccess = true
+
+                    mDocumentUri = uri
                 }
-
-                val mBitmap = Bitmap.createScaledBitmap(
-                    rBitmap,
-                    getImageWidth(rBitmap),
-                    getImageHeight(rBitmap),
-                    true
-                )
-
-                val resizedBitmap= bitmapMargin(mBitmap)
-
-                val xImage = JPEGFactory.createFromImage(document, resizedBitmap, 0.75F, 72)
-
-                contentStream.drawImage(
-                    xImage,
-                    (getPageSizeList(getPageSizePosition(this)).width / 2 - resizedBitmap.width / 2),
-                    (getPageSizeList(getPageSizePosition(this)).height / 2 - resizedBitmap.height / 2)
-                )
-
-                contentStream.close()
             }
-            Log.i("Information", "Pages: ${document.numberOfPages}")
-            // Make sure that the content stream is closed:
-
-            // Save the final pdf document to a file
-            document.save(getOutputFile())
-            document.close()
-            isSuccess = true
         } catch (e: IOException) {
             isSuccess = false
+            println("-- pdf IOException ${e.message}")
+        }
+    }
+
+    private fun loadBitmapWithOrientation(imagePath: String): Bitmap {
+        val exifInterface = ExifInterface(imagePath)
+        val orientation = exifInterface.getAttributeInt(
+            ExifInterface.TAG_ORIENTATION,
+            ExifInterface.ORIENTATION_NORMAL
+        )
+
+        val bitmap = BitmapFactory.decodeFile(imagePath)
+
+        return when (orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> bitmapRotation(bitmap, 90F)
+            ExifInterface.ORIENTATION_ROTATE_180 -> bitmapRotation(bitmap, 180F)
+            ExifInterface.ORIENTATION_ROTATE_270 -> bitmapRotation(bitmap, 270F)
+            else -> bitmapRotation(bitmap, 0F)
         }
     }
 
@@ -286,11 +368,10 @@ class MainActivity : BaseActivity() {
         )
 
         if (mDocumentPath.exists()) {
-            val shareIntent = Intent()
-            shareIntent.action = Intent.ACTION_SEND
+            val shareIntent = Intent(Intent.ACTION_SEND)
+            shareIntent.type = "application/pdf"
+            shareIntent.putExtra(Intent.EXTRA_STREAM, contentUri)
             shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            shareIntent.setDataAndType(contentUri, contentResolver.getType(contentUri))
-            shareIntent.putExtra(Intent.EXTRA_STREAM, Uri.fromFile(getOutputFile()))
             startActivity(Intent.createChooser(shareIntent, "Choose an app"))
         }
     }
@@ -314,7 +395,6 @@ class MainActivity : BaseActivity() {
     }
 
     private fun getOutputFile(): File? {
-
         val root: File = getFilePath(this)
 
         var isFolderCreated = true
@@ -323,11 +403,10 @@ class MainActivity : BaseActivity() {
         }
         return if (isFolderCreated) {
             val imageFileName = getDocumentName()
-            mDocumentPath=  File(root, "$imageFileName.pdf")
+            mDocumentPath = File(root, "$imageFileName.pdf")
             mDocumentPath
         } else {
             Log.i("information", "error: $root")
-//            Toast.makeText(this, "Folder is not created", Toast.LENGTH_SHORT).show()
             null
         }
     }
@@ -387,10 +466,15 @@ class MainActivity : BaseActivity() {
         }
 
         override fun doInBackground(vararg p0: Void?): Void? {
-//            createPDFWithMultipleImage()
-            createPdfBox()
+            try {
+                //createPDFWithMultipleImage()
+                createPdfBox()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "error ${e.message}", Toast.LENGTH_LONG).show()
+                println("-- PdfGenerateAsyncTask Error creating PDF${e.message}")
+                isSuccess = false
+            }
             return null
-
         }
 
         override fun onPostExecute(result: Void?) {

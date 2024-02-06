@@ -64,11 +64,11 @@ class MainActivity : BaseActivity() {
 
             photoIntentMethod()
 
-//            if (checkRequestStorage()) {
-//                photoIntentMethod()
-//            } else {
-//                requestStoragePermission()
-//            }
+            if (checkRequestStorage()) {
+                photoIntentMethod()
+            } else {
+                requestStoragePermission()
+            }
 
         }
 
@@ -160,53 +160,53 @@ class MainActivity : BaseActivity() {
     }
 
 
-//    private fun createPdfBox() {
-//        val document = PDDocument()
-//
-//        try {
-//            for (i in 0 until pathList.size) {
-//                val page = PDPage(getPageSizeList(getPageSizePosition(this)))
-//                document.addPage(page)
-//
-//                val contentStream = PDPageContentStream(document, page, true, true)
-//
-//                // Load the bitmap using the correct orientation
-//                val bitmap = loadBitmapWithOrientation(pathList[i])
-//
-//                val scaledBitmap = Bitmap.createScaledBitmap(
-//                    bitmap,
-//                    getImageWidth(bitmap),
-//                    getImageHeight(bitmap),
-//                    true
-//                )
-//
-//                val resizedBitmap = bitmapMargin(scaledBitmap)
-//
-//                val xImage = JPEGFactory.createFromImage(document, resizedBitmap, 0.75F, 72)
-//
-//                contentStream.drawImage(
-//                    xImage,
-//                    (getPageSizeList(getPageSizePosition(this)).width / 2 - resizedBitmap.width / 2).toFloat(),
-//                    (getPageSizeList(getPageSizePosition(this)).height / 2 - resizedBitmap.height / 2).toFloat()
-//                )
-//
-//                contentStream.close()
-//            }
-//
-//            document.save(getOutputFile()?.absolutePath)
-//            document.close()
-//            isSuccess = true
-//
-//            mDocumentUri = FileProvider.getUriForFile(
-//                applicationContext,
-//                "com.example.imagetopdf.provider",
-//                mDocumentPath
-//            )
-//        } catch (e: IOException) {
-//            println("-- pdf IOException ${e.message}")
-//            isSuccess = false
-//        }
-//    }
+    private fun createPdfBoxBelow13() {
+        val document = PDDocument()
+
+        try {
+            for (i in 0 until pathList.size) {
+                val page = PDPage(getPageSizeList(getPageSizePosition(this)))
+                document.addPage(page)
+
+                val contentStream = PDPageContentStream(document, page, true, true)
+
+                // Load the bitmap using the correct orientation
+                val bitmap = loadBitmapWithOrientation(pathList[i])
+
+                val scaledBitmap = Bitmap.createScaledBitmap(
+                    bitmap,
+                    getImageWidth(bitmap),
+                    getImageHeight(bitmap),
+                    true
+                )
+
+                val resizedBitmap = bitmapMargin(scaledBitmap)
+
+                val xImage = JPEGFactory.createFromImage(document, resizedBitmap, 0.75F, 72)
+
+                contentStream.drawImage(
+                    xImage,
+                    (getPageSizeList(getPageSizePosition(this)).width / 2 - resizedBitmap.width / 2).toFloat(),
+                    (getPageSizeList(getPageSizePosition(this)).height / 2 - resizedBitmap.height / 2).toFloat()
+                )
+
+                contentStream.close()
+            }
+
+            document.save(getOutputFile()?.absolutePath)
+            document.close()
+            isSuccess = true
+
+            mDocumentUri = FileProvider.getUriForFile(
+                applicationContext,
+                "com.example.imagetopdf.provider",
+                mDocumentPath
+            )
+        } catch (e: IOException) {
+            println("-- pdf IOException ${e.message}")
+            isSuccess = false
+        }
+    }
 
 
     private fun createPdfBox() {
